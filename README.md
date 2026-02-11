@@ -2,8 +2,16 @@
 Simple savegame to database converter for analysis or optimization. 
 Builds a query-friendly SQLite schema from GeoJSON and timetable exports.
 
+## Quick use 
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/rlvelte/nimby2sql/master/build_nimby.sh) \
+  --geo <path-to-geo> \
+  --timetable <path-to-timetable>
+```
+
 ## Requirements
 - `bash`/`zsh`
+- `curl` (for bootstrap)
 - `jq`
 - `sqlite3`
 - `awk`, `sort`, `comm`, `wc`, `mktemp`, `join`
