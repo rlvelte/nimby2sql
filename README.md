@@ -39,25 +39,16 @@ $script = Join-Path ([System.IO.Path]::GetTempPath()) "build_nimby.ps1"; Invoke-
 
 
 ## 3. Result
-The script creates:
-- Table `stations`
-  - `station_id`, `name`, `lon`, `lat`
-- Table `lines`
-  - `line_id`, `name`, `code`, `color`
-- Table `line_stops`
-  - `line_id`, `stop_index`, `station_id`, `arrival_s`, `departure_s`, `leg_distance_m`
-- View `line_stops_enriched`
-  - Join of `line_stops`, `lines`, `stations`
-
-Integrity:
-- Foreign keys are enabled.
-- `PRAGMA foreign_key_check` is checked.
+The script creates a `.db` file in the same directory as the exported files. You can use it with `sqlite3` or any other client of your choice. 
+If you prefer a GUI, I can recommend [DB Browser for SQLite](https://sqlitebrowser.org/).
 
 > [!NOTE]
 > Stops with `station_id = 0x0` are waypoints and intentionally filtered.
 
 
 ## 4. Example queries
+Here are some example queries that you can run against the database to gain some insights you can use for optimization of your network or to visualize with additional software.
+
 This query shows the 20 stations that are served by the highest number of distinct lines.
 ```sql
 SELECT station_id, station_name, COUNT(DISTINCT line_id) AS lines_serving
