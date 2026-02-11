@@ -2,7 +2,7 @@
 Simple savegame to database converter for analysis or optimization. 
 Builds a query-friendly SQLite schema from GeoJSON and timetable exports.
 
-## Quick use 
+## Quick use (Linux)
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/rlvelte/nimby2sql/master/build_nimby.sh) \
   --geo <path-to-geo>.json \
@@ -45,6 +45,8 @@ Integrity:
 
 > [!NOTE]
 > Stops with `station_id = 0x0` are waypoints and intentionally filtered.
+
+
 
 
 **More CLI Options**
