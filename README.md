@@ -27,10 +27,12 @@ Use the export functions in **NIMBY Rails** located at `Company and Accounting -
 You can run the script directly from the command line or clone the repository and run it from the project root.
 Remember to change the placeholder (`path-to-geo.json` and `path-to-timetable.json`) with the actual paths to the exported files.
 
+Linux
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/rlvelte/nimby2sql/master/build_nimby.sh) --geo path-to-geo.json --timetable path-to-timetable.json
 ```
 
+Windows
 ```powershell
 $script = Join-Path ([System.IO.Path]::GetTempPath()) "build_nimby.ps1"; Invoke-WebRequest "https://raw.githubusercontent.com/rlvelte/nimby2sql/master/build_nimby.ps1" -OutFile $script; pwsh -NoProfile -ExecutionPolicy Bypass -File $script --geo "C:\path\to\geo.json" --timetable "C:\path\to\timetable.json"
 ```
