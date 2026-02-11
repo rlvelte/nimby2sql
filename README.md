@@ -28,16 +28,7 @@ Use the export functions in **NIMBY Rails** located at `Company and Accounting -
 ./build_nimby.sh --geo geo.json --timetable timetable.json
 ```
 
-
-## More CLI Options
-- `--geo <path>`: GeoJSON export from the game
-- `--timetable <path>`: timetable export from the game
-- `--output <path>`: target DB (default: `./nimby_rails.db`)
-- `--force`: overwrite existing DB
-- `-h`, `--help`: show help
-
-
-## Result
+## 3. Result
 The script creates:
 - Table `stations`
   - `station_id`, `name`, `lon`, `lat`
@@ -54,3 +45,11 @@ Integrity:
 
 > [!NOTE]
 > Stops with `station_id = 0x0` are waypoints and intentionally filtered.
+
+
+### More CLI Options
+- `--geo <path>`: GeoJSON export from the game
+- `--timetable <path>`: timetable export from the game
+- `--output <path>`: target DB (default: `./nimby_rails.db`)
+- `--force`: overwrite existing DB
+- `-h`, `--help`: show help
