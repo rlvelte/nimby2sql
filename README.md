@@ -1,16 +1,5 @@
-# NIMBY Rails -> SQLite 
-Simple savegame to database converter for analysis or optimization. 
-Builds a query-friendly SQLite schema from GeoJSON and timetable exports.
-
-## Quick use (Linux)
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/rlvelte/nimby2sql/master/build_nimby.sh) --geo path-to-geo.json --timetable path-to-timetable.json
-```
-
-## Quick use (Windows)
-```powershell
-$script = Join-Path ([System.IO.Path]::GetTempPath()) "build_nimby.ps1"; Invoke-WebRequest "https://raw.githubusercontent.com/rlvelte/nimby2sql/master/build_nimby.ps1" -OutFile $script; pwsh -NoProfile -ExecutionPolicy Bypass -File $script --geo "C:\path\to\geo.json" --timetable "C:\path\to\timetable.json"
-```
+# NIMBY2SQL
+Converts NIMBY Rails savegame into an SQLite database with a query-friendly schema, so you can explore stations/lines and their relations with SQL for analysis and optimization.
 
 ## Requirements
 Linux/macOS:
@@ -34,14 +23,16 @@ Use the export functions in **NIMBY Rails** located at `Company and Accounting -
 > Steam saves those files in `/.local/share/Steam/steamapps/compatdata/1134710/pfx/drive_c/...` on Linux.
 
 
-## 2. Run
+## 2. Run the script
+You can run the script directly from the command line or clone the repository and run it from the project root.
+Remember to change the placeholder (`path-to-geo.json` and `path-to-timetable.json`) with the actual paths to the exported files.
+
 ```bash
-./build_nimby.sh --geo geo.json --timetable timetable.json
+bash <(curl -fsSL https://raw.githubusercontent.com/rlvelte/nimby2sql/master/build_nimby.sh) --geo path-to-geo.json --timetable path-to-timetable.json
 ```
+
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\build_nimby.ps1 `
-  --geo .\geo.json `
-  --timetable .\timetable.json
+$script = Join-Path ([System.IO.Path]::GetTempPath()) "build_nimby.ps1"; Invoke-WebRequest "https://raw.githubusercontent.com/rlvelte/nimby2sql/master/build_nimby.ps1" -OutFile $script; pwsh -NoProfile -ExecutionPolicy Bypass -File $script --geo "C:\path\to\geo.json" --timetable "C:\path\to\timetable.json"
 ```
 
 
