@@ -47,7 +47,7 @@ Integrity:
 > Stops with `station_id = 0x0` are waypoints and intentionally filtered.
 
 
-### More CLI Options
+**More CLI Options**
 - `--geo <path>`: GeoJSON export from the game
 - `--timetable <path>`: timetable export from the game
 - `--output <path>`: target DB (default: `./nimby_rails.db`)
