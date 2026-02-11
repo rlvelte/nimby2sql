@@ -22,6 +22,9 @@ Use the export functions in **NIMBY Rails** located at `Company and Accounting -
 1. `Export GeoJSON` -> Creates `C:\users\<user>\Saved Games\Weird and Wry\NIMBY Rails\<savegame-name>.json`
 2. `Export Timetables` -> Creates `C:\users\<user>\Saved Games\Weird and Wry\NIMBY Rails\<savegame-name> Timetable Export.json`
 
+> [!NOTE]
+> Steam saves those files in `/.local/share/Steam/steamapps/compatdata/1134710/pfx/drive_c/...` on Linux.
+
 
 ## 2. Build SQLite
 ```bash
