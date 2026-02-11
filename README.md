@@ -9,27 +9,47 @@ bash <(curl -fsSL https://raw.githubusercontent.com/rlvelte/nimby2sql/master/bui
   --timetable <path-to-timetable>.json
 ```
 
+## Quick use (Windows)
+```powershell
+$script = Join-Path $env:TEMP "build_nimby.ps1"
+Invoke-WebRequest "https://raw.githubusercontent.com/rlvelte/nimby2sql/master/build_nimby.ps1" -OutFile $script
+pwsh -NoProfile -ExecutionPolicy Bypass -File $script `
+  --geo "C:\path\to\geo.json" `
+  --timetable "C:\path\to\timetable.json"
+```
+
 ## Requirements
+Linux/macOS (for `build_nimby.sh`):
 - `bash`
 - `curl` (for bootstrap)
 - `jq`
 - `sqlite3`
 - `awk`, `sort`, `comm`, `wc`, `mktemp`, `join`
 
+Windows (for `build_nimby.ps1`):
+- `pwsh` (PowerShell 7+)
+- `sqlite3` in `PATH`
+
 
 ## 1. Export
 Use the export functions in **NIMBY Rails** located at `Company and Accounting -> Info`:
-1. `Export GeoJSON` -> Creates `C:\users\<user>\Saved Games\Weird and Wry\NIMBY Rails\<savegame-name>.json`
-2. `Export Timetables` -> Creates `C:\users\<user>\Saved Games\Weird and Wry\NIMBY Rails\<savegame-name> Timetable Export.json`
+1. Export GeoJSON -> `C:\users\<user>\Saved Games\Weird and Wry\NIMBY Rails\<savegame-name>.json`
+2. Export Timetables -> `C:\users\<user>\Saved Games\Weird and Wry\NIMBY Rails\<savegame-name> Timetable Export.json`
 
 > [!NOTE]
 > Steam saves those files in `/.local/share/Steam/steamapps/compatdata/1134710/pfx/drive_c/...` on Linux.
 
 
-## 2. Build SQLite
+## 2. Build
 ```bash
 ./build_nimby.sh --geo geo.json --timetable timetable.json
 ```
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\build_nimby.ps1 `
+  --geo .\geo.json `
+  --timetable .\timetable.json
+```
+
 
 ## 3. Result
 The script creates:
@@ -48,13 +68,3 @@ Integrity:
 
 > [!NOTE]
 > Stops with `station_id = 0x0` are waypoints and intentionally filtered.
-
-
-
-
-**More CLI Options**
-- `--geo <path>`: GeoJSON export from the game
-- `--timetable <path>`: timetable export from the game
-- `--output <path>`: target DB (default: `./nimby_rails.db`)
-- `--force`: overwrite existing DB
-- `-h`, `--help`: show help
