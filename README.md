@@ -4,29 +4,23 @@ Builds a query-friendly SQLite schema from GeoJSON and timetable exports.
 
 ## Quick use (Linux)
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/rlvelte/nimby2sql/master/build_nimby.sh) \
-  --geo <path-to-geo>.json \
-  --timetable <path-to-timetable>.json
+bash <(curl -fsSL https://raw.githubusercontent.com/rlvelte/nimby2sql/master/build_nimby.sh) --geo path-to-geo.json --timetable path-to-timetable.json
 ```
 
 ## Quick use (Windows)
 ```powershell
-$script = Join-Path $env:TEMP "build_nimby.ps1"
-Invoke-WebRequest "https://raw.githubusercontent.com/rlvelte/nimby2sql/master/build_nimby.ps1" -OutFile $script
-pwsh -NoProfile -ExecutionPolicy Bypass -File $script `
-  --geo "C:\path\to\geo.json" `
-  --timetable "C:\path\to\timetable.json"
+$script = Join-Path ([System.IO.Path]::GetTempPath()) "build_nimby.ps1"; Invoke-WebRequest "https://raw.githubusercontent.com/rlvelte/nimby2sql/master/build_nimby.ps1" -OutFile $script; pwsh -NoProfile -ExecutionPolicy Bypass -File $script --geo "C:\path\to\geo.json" --timetable "C:\path\to\timetable.json"
 ```
 
 ## Requirements
-Linux/macOS (for `build_nimby.sh`):
+Linux/macOS:
 - `bash`
 - `curl` (for bootstrap)
 - `jq`
 - `sqlite3`
 - `awk`, `sort`, `comm`, `wc`, `mktemp`, `join`
 
-Windows (for `build_nimby.ps1`):
+Windows:
 - `pwsh` (PowerShell 7+)
 - `sqlite3` in `PATH`
 
@@ -40,7 +34,7 @@ Use the export functions in **NIMBY Rails** located at `Company and Accounting -
 > Steam saves those files in `/.local/share/Steam/steamapps/compatdata/1134710/pfx/drive_c/...` on Linux.
 
 
-## 2. Build
+## 2. Run
 ```bash
 ./build_nimby.sh --geo geo.json --timetable timetable.json
 ```
