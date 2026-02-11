@@ -5,12 +5,12 @@ Builds a query-friendly SQLite schema from GeoJSON and timetable exports.
 ## Quick use 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/rlvelte/nimby2sql/master/build_nimby.sh) \
-  --geo <path-to-geo> \
-  --timetable <path-to-timetable>
+  --geo <path-to-geo>.json \
+  --timetable <path-to-timetable>.json
 ```
 
 ## Requirements
-- `bash`/`zsh`
+- `bash`
 - `curl` (for bootstrap)
 - `jq`
 - `sqlite3`
@@ -18,9 +18,9 @@ bash <(curl -fsSL https://raw.githubusercontent.com/rlvelte/nimby2sql/master/bui
 
 
 ## 1. Export
-Use the export functions in **NIMBY Rails**:
-1. `Export GeoJSON` -> creates `geo.json`
-2. `Export Timetables` -> creates `timetable.json`
+Use the export functions in **NIMBY Rails** located at `Company and Accounting -> Info`:
+1. `Export GeoJSON` -> Creates `C:\users\<user>\Saved Games\Weird and Wry\NIMBY Rails\<savegame-name>.json`
+2. `Export Timetables` -> Creates `C:\users\<user>\Saved Games\Weird and Wry\NIMBY Rails\<savegame-name> Timetable Export.json`
 
 
 ## 2. Build SQLite
@@ -29,7 +29,7 @@ Use the export functions in **NIMBY Rails**:
 ```
 
 
-## CLI Options
+## More CLI Options
 - `--geo <path>`: GeoJSON export from the game
 - `--timetable <path>`: timetable export from the game
 - `--output <path>`: target DB (default: `./nimby_rails.db`)
