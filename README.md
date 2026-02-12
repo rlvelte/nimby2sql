@@ -1,5 +1,5 @@
 # NIMBY2SQL
-Converts NIMBY Rails savegame into an SQLite database with a query-friendly schema, so you can explore stations/lines and their relations with SQL for analysis and optimization.
+Converts NIMBY Rails savegame into an SQLite database, so you can explore stations/lines and their relations with SQL for analysis and optimization.
 
 ## Requirements
 Linux/macOS:
