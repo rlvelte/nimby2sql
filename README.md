@@ -7,11 +7,13 @@ Linux/macOS:
 - `curl` (for bootstrap)
 - `jq`
 - `sqlite3`
+- `python3` (optional, for GraphML export)
 - `awk`, `sort`, `comm`, `wc`, `mktemp`, `join`
 
 Windows:
 - `pwsh` (PowerShell 7+)
 - `sqlite3` in `PATH`
+- `python` (optional, for GraphML export)
 
 
 ## 1. Export
@@ -20,7 +22,7 @@ Use the export functions in **NIMBY Rails** located at `Company and Accounting -
 2. Export Timetables -> `C:\users\<user>\Saved Games\Weird and Wry\NIMBY Rails\<savegame-name> Timetable Export.json`
 
 > [!NOTE]
-> Steam saves those files in `/.local/share/Steam/steamapps/compatdata/1134710/pfx/drive_c/...` on Linux.
+> Linux saves those files in `/.local/share/Steam/steamapps/compatdata/1134710/pfx/drive_c/...`
 
 
 ## 2. Run the script
@@ -46,7 +48,16 @@ If you prefer a GUI, I can recommend [DB Browser for SQLite](https://sqlitebrows
 > Stops with `station_id = 0x0` are waypoints and intentionally filtered.
 
 
-## 4. Example queries
+## 4. Build GraphML (optional)
+Use the Python script to convert the generated `.db` into a station-only GraphML file (`nimby_rails.graphml`) for graph based network analysis and visualization tools. 
+If you also need a GUI for that, I can recommend [Gephi](https://gephi.org/).
+
+Linux
+```bash
+python3 build_graph.py -i path-to-nimby_rails.db
+```
+
+## 5. Example queries
 Here are some example queries that you can run against the database to gain some insights you can use for optimization of your network or to visualize with additional software.
 
 This query shows the 20 stations that are served by the highest number of distinct lines.
