@@ -22,7 +22,7 @@ Use the export functions in **NIMBY Rails** located at `Company and Accounting -
 2. Export Timetables -> `C:\users\<user>\Saved Games\Weird and Wry\NIMBY Rails\<savegame-name> Timetable Export.json`
 
 > [!NOTE]
-> Steam saves those files in `/.local/share/Steam/steamapps/compatdata/1134710/pfx/drive_c/...` on Linux.
+> Linux saves those files in `/.local/share/Steam/steamapps/compatdata/1134710/pfx/drive_c/...`
 
 
 ## 2. Run the script
