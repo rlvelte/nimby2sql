@@ -41,7 +41,7 @@ $script = Join-Path ([System.IO.Path]::GetTempPath()) "build_nimby.ps1"; Invoke-
 
 
 ## 3. Result
-The script creates a `.db` file in the same directory as the exported files. You can use it with `sqlite3` or any other client of your choice. 
+The script creates a `.db` file. You can use it with `sqlite3` or any other client of your choice. 
 If you prefer a GUI, I can recommend [DB Browser for SQLite](https://sqlitebrowser.org/).
 
 > [!NOTE]
@@ -52,7 +52,7 @@ If you prefer a GUI, I can recommend [DB Browser for SQLite](https://sqlitebrows
 Use the Python script to convert the generated `.db` into a station-only GraphML file (`nimby_rails.graphml`) for graph based network analysis and visualization tools. 
 If you also need a GUI for that, I can recommend [Gephi](https://gephi.org/).
 
-Linux
+Linux/Windows
 ```bash
 python3 build_graph.py -i path-to-nimby_rails.db
 ```
