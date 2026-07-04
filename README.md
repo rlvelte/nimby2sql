@@ -1,4 +1,4 @@
-<img src="assets/icon.png" />
+<img src="assets/logo.png" />
 
 # NIMBY2SQL
 Converts NIMBY Rails savegame into an SQLite database, so you can explore your complete network and its relations with SQL for analysis and optimization.
