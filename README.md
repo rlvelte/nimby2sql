@@ -7,6 +7,8 @@ Linux/macOS:
 - `curl` (for bootstrap)
 - `sqlite3`
 - `jq`
+- `awk`
+- `tr`
 
 Windows:
 - `powershell/pwsh`
