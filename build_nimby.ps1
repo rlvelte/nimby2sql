@@ -33,6 +33,14 @@ function Require-Command {
   }
 }
 
+function ConvertFrom-JsonSafe {
+  param([string]$Json)
+  if ($PSVersionTable.PSVersion.Major -ge 6) {
+    return $Json | ConvertFrom-Json -Depth 100
+  }
+  return $Json | ConvertFrom-Json
+}
+
 function To-DecimalId {
   param([Parameter(Mandatory = $true)] [object]$Id)
   $Text = [string]$Id
@@ -160,7 +168,7 @@ if (-not [string]::IsNullOrWhiteSpace($outputDir)) {
 }
 
 try {
-  $geoJson = Get-Content -LiteralPath $geo -Raw | ConvertFrom-Json -Depth 100
+  $geoJson = Get-Content -LiteralPath $geo -Raw | ConvertFrom-JsonSafe
 }
 catch {
   Fail "Geo file is not valid JSON: $geo"
@@ -171,7 +179,7 @@ if ($geoJson.type -ne 'FeatureCollection') {
 }
 
 try {
-  $timetableJson = Get-Content -LiteralPath $timetable -Raw | ConvertFrom-Json -Depth 100
+  $timetableJson = Get-Content -LiteralPath $timetable -Raw | ConvertFrom-JsonSafe
 }
 catch {
   Fail "Timetable file is not valid JSON: $timetable"
@@ -188,6 +196,17 @@ try {
   $stationsTsv = Join-Path $tmpdir 'stations.tsv'
   $linesTsv = Join-Path $tmpdir 'lines.tsv'
   $lineStopsTsv = Join-Path $tmpdir 'line_stops.tsv'
+  $tagsTsv = Join-Path $tmpdir 'tags.tsv'
+  $lineTagsTsv = Join-Path $tmpdir 'line_tags.tsv'
+  $trainsTsv = Join-Path $tmpdir 'trains.tsv'
+  $trainTagsTsv = Join-Path $tmpdir 'train_tags.tsv'
+  $schedulesTsv = Join-Path $tmpdir 'schedules.tsv'
+  $scheduleTagsTsv = Join-Path $tmpdir 'schedule_tags.tsv'
+  $scheduleTrainsTsv = Join-Path $tmpdir 'schedule_trains.tsv'
+  $scheduleTrainShiftsTsv = Join-Path $tmpdir 'schedule_train_shifts.tsv'
+  $shiftsTsv = Join-Path $tmpdir 'shifts.tsv'
+  $shiftTagsTsv = Join-Path $tmpdir 'shift_tags.tsv'
+  $runsTsv = Join-Path $tmpdir 'runs.tsv'
   $schemaSql = Join-Path $tmpdir 'schema.sql'
 
   $stations = @($timetableJson | Where-Object { $_.class -eq 'Station' })
@@ -231,6 +250,127 @@ try {
     }
   }
   Write-TsvRows -Path $lineStopsTsv -Rows $lineStopRows
+
+  $tags = @($timetableJson | Where-Object { $_.class -eq 'Tag' })
+  $tagRows = foreach ($tag in $tags) {
+    ,@(
+      [string]$tag.id
+      [string]$tag.name
+      [string]$tag.parent_id
+    )
+  }
+  Write-TsvRows -Path $tagsTsv -Rows $tagRows
+
+  $lineTagRows = foreach ($line in $lines) {
+    if ($null -eq $line.tags) { continue }
+    foreach ($tagId in $line.tags) {
+      ,@([string]$line.id, [string]$tagId)
+    }
+  }
+  Write-TsvRows -Path $lineTagsTsv -Rows $lineTagRows
+
+  $trains = @($timetableJson | Where-Object { $_.class -eq 'Train' })
+  $trainRows = foreach ($train in $trains) {
+    ,@(
+      [string]$train.id
+      [string]$train.name
+      [string]$train.code
+    )
+  }
+  Write-TsvRows -Path $trainsTsv -Rows $trainRows
+
+  $trainTagRows = foreach ($train in $trains) {
+    if ($null -eq $train.tags) { continue }
+    foreach ($tagId in $train.tags) {
+      ,@([string]$train.id, [string]$tagId)
+    }
+  }
+  Write-TsvRows -Path $trainTagsTsv -Rows $trainTagRows
+
+  $schedules = @($timetableJson | Where-Object { $_.class -eq 'Schedule' })
+  $scheduleRows = foreach ($sched in $schedules) {
+    ,@(
+      [string]$sched.id
+      [string]$sched.name
+      [string]$sched.color
+      [string]$sched.tz_delta_s
+    )
+  }
+  Write-TsvRows -Path $schedulesTsv -Rows $scheduleRows
+
+  $scheduleTagRows = foreach ($sched in $schedules) {
+    if ($null -eq $sched.tags) { continue }
+    foreach ($tagId in $sched.tags) {
+      ,@([string]$sched.id, [string]$tagId)
+    }
+  }
+  Write-TsvRows -Path $scheduleTagsTsv -Rows $scheduleTagRows
+
+  $scheduleTrainRows = foreach ($sched in $schedules) {
+    if ($null -eq $sched.trains) { continue }
+    foreach ($trainId in $sched.trains.PSObject.Properties.Name) {
+      ,@([string]$sched.id, [string]$trainId)
+    }
+  }
+  Write-TsvRows -Path $scheduleTrainsTsv -Rows $scheduleTrainRows
+
+  $scheduleTrainShiftRows = foreach ($sched in $schedules) {
+    if ($null -eq $sched.trains) { continue }
+    foreach ($entry in $sched.trains.PSObject.Properties) {
+      $trainId = $entry.Name
+      $shiftIds = @($entry.Value)
+      foreach ($shiftId in $shiftIds) {
+        ,@([string]$sched.id, [string]$trainId, [string]$shiftId)
+      }
+    }
+  }
+  Write-TsvRows -Path $scheduleTrainShiftsTsv -Rows $scheduleTrainShiftRows
+
+  $shiftRows = foreach ($sched in $schedules) {
+    if ($null -eq $sched.shifts) { continue }
+    foreach ($shift in $sched.shifts) {
+      ,@(
+        [string]$sched.id
+        [string]$shift.id
+        [string]$shift.name
+      )
+    }
+  }
+  Write-TsvRows -Path $shiftsTsv -Rows $shiftRows
+
+  $shiftTagRows = foreach ($sched in $schedules) {
+    if ($null -eq $sched.shifts) { continue }
+    foreach ($shift in $sched.shifts) {
+      if ($null -eq $shift.tags) { continue }
+      foreach ($tagId in $shift.tags) {
+        ,@([string]$sched.id, [string]$shift.id, [string]$tagId)
+      }
+    }
+  }
+  Write-TsvRows -Path $shiftTagsTsv -Rows $shiftTagRows
+
+  $runRows = foreach ($sched in $schedules) {
+    if ($null -eq $sched.shifts) { continue }
+    foreach ($shift in $sched.shifts) {
+      if ($null -eq $shift.runs) { continue }
+      foreach ($run in $shift.runs) {
+        $timingsJson = $null
+        if ($null -ne $run.arrival_departure) {
+          $timingsJson = ($run.arrival_departure | ConvertTo-Json -Compress)
+        }
+        ,@(
+          [string]$sched.id
+          [string]$shift.id
+          [string]$run.idx
+          [string]$run.line_id
+          [string]$run.enter_stop_idx
+          [string]$run.exit_stop_idx
+          [string]$timingsJson
+        )
+      }
+    }
+  }
+  Write-TsvRows -Path $runsTsv -Rows $runRows
 
   $zeroStopCount = @(
     foreach ($line in $lines) {
@@ -301,11 +441,33 @@ try {
   $stationsImport = Escape-SqliteCliPath $stationsTsv
   $linesImport = Escape-SqliteCliPath $linesTsv
   $lineStopsImport = Escape-SqliteCliPath $lineStopsTsv
+  $tagsImport = Escape-SqliteCliPath $tagsTsv
+  $lineTagsImport = Escape-SqliteCliPath $lineTagsTsv
+  $trainsImport = Escape-SqliteCliPath $trainsTsv
+  $trainTagsImport = Escape-SqliteCliPath $trainTagsTsv
+  $schedulesImport = Escape-SqliteCliPath $schedulesTsv
+  $scheduleTagsImport = Escape-SqliteCliPath $scheduleTagsTsv
+  $scheduleTrainsImport = Escape-SqliteCliPath $scheduleTrainsTsv
+  $scheduleTrainShiftsImport = Escape-SqliteCliPath $scheduleTrainShiftsTsv
+  $shiftsImport = Escape-SqliteCliPath $shiftsTsv
+  $shiftTagsImport = Escape-SqliteCliPath $shiftTagsTsv
+  $runsImport = Escape-SqliteCliPath $runsTsv
 
   $schema = @"
 PRAGMA foreign_keys = ON;
 
 DROP VIEW IF EXISTS line_stops_enriched;
+DROP TABLE IF EXISTS runs;
+DROP TABLE IF EXISTS shift_tags;
+DROP TABLE IF EXISTS shifts;
+DROP TABLE IF EXISTS schedule_train_shifts;
+DROP TABLE IF EXISTS schedule_trains;
+DROP TABLE IF EXISTS schedule_tags;
+DROP TABLE IF EXISTS schedules;
+DROP TABLE IF EXISTS train_tags;
+DROP TABLE IF EXISTS line_tags;
+DROP TABLE IF EXISTS trains;
+DROP TABLE IF EXISTS tags;
 DROP TABLE IF EXISTS line_stops;
 DROP TABLE IF EXISTS lines;
 DROP TABLE IF EXISTS stations;
@@ -340,10 +502,111 @@ CREATE TABLE line_stops (
 CREATE INDEX idx_line_stops_station_id ON line_stops(station_id);
 CREATE INDEX idx_line_stops_line_id ON line_stops(line_id);
 
+CREATE TABLE tags (
+  tag_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  parent_tag_id TEXT
+);
+
+CREATE TABLE line_tags (
+  line_id TEXT NOT NULL,
+  tag_id TEXT NOT NULL,
+  PRIMARY KEY (line_id, tag_id),
+  FOREIGN KEY (line_id) REFERENCES lines(line_id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags(tag_id) ON DELETE RESTRICT
+);
+
+CREATE TABLE trains (
+  train_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  code TEXT NOT NULL
+);
+
+CREATE TABLE train_tags (
+  train_id TEXT NOT NULL,
+  tag_id TEXT NOT NULL,
+  PRIMARY KEY (train_id, tag_id),
+  FOREIGN KEY (train_id) REFERENCES trains(train_id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags(tag_id) ON DELETE RESTRICT
+);
+
+CREATE TABLE schedules (
+  schedule_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  color TEXT,
+  tz_delta_s INTEGER NOT NULL
+);
+
+CREATE TABLE schedule_tags (
+  schedule_id TEXT NOT NULL,
+  tag_id TEXT NOT NULL,
+  PRIMARY KEY (schedule_id, tag_id),
+  FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags(tag_id) ON DELETE RESTRICT
+);
+
+CREATE TABLE schedule_trains (
+  schedule_id TEXT NOT NULL,
+  train_id TEXT NOT NULL,
+  PRIMARY KEY (schedule_id, train_id),
+  FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE,
+  FOREIGN KEY (train_id) REFERENCES trains(train_id) ON DELETE CASCADE
+);
+
+CREATE TABLE schedule_train_shifts (
+  schedule_id TEXT NOT NULL,
+  train_id TEXT NOT NULL,
+  shift_id TEXT NOT NULL,
+  PRIMARY KEY (schedule_id, train_id, shift_id),
+  FOREIGN KEY (schedule_id, train_id) REFERENCES schedule_trains(schedule_id, train_id) ON DELETE CASCADE,
+  FOREIGN KEY (schedule_id, shift_id) REFERENCES shifts(schedule_id, shift_id) ON DELETE CASCADE
+);
+
+CREATE TABLE shifts (
+  schedule_id TEXT NOT NULL,
+  shift_id TEXT NOT NULL,
+  name TEXT,
+  PRIMARY KEY (schedule_id, shift_id),
+  FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE
+);
+
+CREATE TABLE shift_tags (
+  schedule_id TEXT NOT NULL,
+  shift_id TEXT NOT NULL,
+  tag_id TEXT NOT NULL,
+  PRIMARY KEY (schedule_id, shift_id, tag_id),
+  FOREIGN KEY (schedule_id, shift_id) REFERENCES shifts(schedule_id, shift_id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags(tag_id) ON DELETE RESTRICT
+);
+
+CREATE TABLE runs (
+  schedule_id TEXT NOT NULL,
+  shift_id TEXT NOT NULL,
+  run_idx INTEGER NOT NULL,
+  line_id TEXT NOT NULL,
+  enter_stop_idx INTEGER NOT NULL,
+  exit_stop_idx INTEGER NOT NULL,
+  timings_json TEXT NOT NULL,
+  PRIMARY KEY (schedule_id, shift_id, run_idx),
+  FOREIGN KEY (schedule_id, shift_id) REFERENCES shifts(schedule_id, shift_id) ON DELETE CASCADE,
+  FOREIGN KEY (line_id) REFERENCES lines(line_id) ON DELETE RESTRICT
+);
+
 .mode tabs
 .import '$stationsImport' stations
 .import '$linesImport' lines
 .import '$lineStopsImport' line_stops
+.import '$tagsImport' tags
+.import '$lineTagsImport' line_tags
+.import '$trainsImport' trains
+.import '$trainTagsImport' train_tags
+.import '$schedulesImport' schedules
+.import '$scheduleTagsImport' schedule_tags
+.import '$scheduleTrainsImport' schedule_trains
+.import '$shiftsImport' shifts
+.import '$scheduleTrainShiftsImport' schedule_train_shifts
+.import '$shiftTagsImport' shift_tags
+.import '$runsImport' runs
 
 CREATE VIEW line_stops_enriched AS
 SELECT
@@ -384,11 +647,21 @@ JOIN stations s ON s.station_id = ls.station_id;
   $linesCount = (Invoke-Sqlite -Database $output -Sql 'SELECT COUNT(*) FROM lines;' -ErrorContext 'count lines' | Out-String).Trim()
   $lineStopsCount = (Invoke-Sqlite -Database $output -Sql 'SELECT COUNT(*) FROM line_stops;' -ErrorContext 'count line_stops' | Out-String).Trim()
   $null = Invoke-Sqlite -Database $output -Sql 'SELECT COUNT(*) FROM line_stops_enriched;' -ErrorContext 'count line_stops_enriched'
+  $tagsCount = (Invoke-Sqlite -Database $output -Sql 'SELECT COUNT(*) FROM tags;' -ErrorContext 'count tags' | Out-String).Trim()
+  $trainsCount = (Invoke-Sqlite -Database $output -Sql 'SELECT COUNT(*) FROM trains;' -ErrorContext 'count trains' | Out-String).Trim()
+  $schedulesCount = (Invoke-Sqlite -Database $output -Sql 'SELECT COUNT(*) FROM schedules;' -ErrorContext 'count schedules' | Out-String).Trim()
+  $shiftsCount = (Invoke-Sqlite -Database $output -Sql 'SELECT COUNT(*) FROM shifts;' -ErrorContext 'count shifts' | Out-String).Trim()
+  $runsCount = (Invoke-Sqlite -Database $output -Sql 'SELECT COUNT(*) FROM runs;' -ErrorContext 'count runs' | Out-String).Trim()
 
   Write-Host "Created: $output"
   Write-Host "Stations: $stationsCount"
   Write-Host "Lines: $linesCount"
   Write-Host "Stops: $lineStopsCount (ex. $zeroStopCount waypoints)"
+  Write-Host "Tags: $tagsCount"
+  Write-Host "Trains: $trainsCount"
+  Write-Host "Schedules: $schedulesCount"
+  Write-Host "Shifts: $shiftsCount"
+  Write-Host "Runs: $runsCount"
   Write-Host ''
   Write-Host 'Have fun!'
 }

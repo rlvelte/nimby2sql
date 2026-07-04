@@ -121,6 +121,107 @@ jq -r '
   | @tsv
 ' "$timetable" >"$tmpdir/line_stops.tsv"
 
+# Tags hierarchy
+jq -r '
+  .[]
+  | select(.class=="Tag")
+  | [.id, .name, .parent_id]
+  | @tsv
+' "$timetable" >"$tmpdir/tags.tsv"
+
+# Line → tags
+jq -r '
+  .[]
+  | select(.class=="Line") as $line
+  | $line.tags[]
+  | [$line.id, .]
+  | @tsv
+' "$timetable" >"$tmpdir/line_tags.tsv"
+
+# Trains (rolling stock)
+jq -r '
+  .[]
+  | select(.class=="Train")
+  | [.id, .name, .code]
+  | @tsv
+' "$timetable" >"$tmpdir/trains.tsv"
+
+# Train → tags
+jq -r '
+  .[]
+  | select(.class=="Train") as $train
+  | $train.tags[]
+  | [$train.id, .]
+  | @tsv
+' "$timetable" >"$tmpdir/train_tags.tsv"
+
+# Schedules
+jq -r '
+  .[]
+  | select(.class=="Schedule")
+  | [.id, .name, .color, .tz_delta_s]
+  | @tsv
+' "$timetable" >"$tmpdir/schedules.tsv"
+
+# Schedule → tags
+jq -r '
+  .[]
+  | select(.class=="Schedule") as $sched
+  | $sched.tags[]
+  | [$sched.id, .]
+  | @tsv
+' "$timetable" >"$tmpdir/schedule_tags.tsv"
+
+# Schedule → train assignments
+jq -r '
+  .[]
+  | select(.class=="Schedule") as $sched
+  | $sched.trains | to_entries[]
+  | [$sched.id, .key]
+  | @tsv
+' "$timetable" >"$tmpdir/schedule_trains.tsv"
+
+# Which shift each train serves within a schedule
+jq -r '
+  .[]
+  | select(.class=="Schedule") as $sched
+  | $sched.trains | to_entries[]
+  | $sched.id as $sid
+  | .key as $train_id
+  | .value[]
+  | [$sid, $train_id, .]
+  | @tsv
+' "$timetable" >"$tmpdir/schedule_train_shifts.tsv"
+
+# Shifts
+jq -r '
+  .[]
+  | select(.class=="Schedule") as $sched
+  | $sched.shifts[]
+  | [$sched.id, .id, .name]
+  | @tsv
+' "$timetable" >"$tmpdir/shifts.tsv"
+
+# Shift → tags
+jq -r '
+  .[]
+  | select(.class=="Schedule") as $sched
+  | $sched.shifts[] as $shift
+  | $shift.tags[]
+  | [$sched.id, $shift.id, .]
+  | @tsv
+' "$timetable" >"$tmpdir/shift_tags.tsv"
+
+# Runs
+jq -r '
+  .[]
+  | select(.class=="Schedule") as $sched
+  | $sched.shifts[] as $shift
+  | $shift.runs[] as $run
+  | [$sched.id, $shift.id, $run.idx, $run.line_id, $run.enter_stop_idx, $run.exit_stop_idx, ($run.arrival_departure | @json)]
+  | @tsv
+' "$timetable" >"$tmpdir/runs.tsv"
+
 zero_stop_count="$(
   jq -r '
     [.[] | select(.class=="Line") | .stops[] | select(.station_id=="0x0")]
@@ -178,6 +279,17 @@ sqlite3 "$output" <<SQL
 PRAGMA foreign_keys = ON;
 
 DROP VIEW IF EXISTS line_stops_enriched;
+DROP TABLE IF EXISTS runs;
+DROP TABLE IF EXISTS shift_tags;
+DROP TABLE IF EXISTS shifts;
+DROP TABLE IF EXISTS schedule_train_shifts;
+DROP TABLE IF EXISTS schedule_trains;
+DROP TABLE IF EXISTS schedule_tags;
+DROP TABLE IF EXISTS schedules;
+DROP TABLE IF EXISTS train_tags;
+DROP TABLE IF EXISTS line_tags;
+DROP TABLE IF EXISTS trains;
+DROP TABLE IF EXISTS tags;
 DROP TABLE IF EXISTS line_stops;
 DROP TABLE IF EXISTS lines;
 DROP TABLE IF EXISTS stations;
@@ -212,10 +324,111 @@ CREATE TABLE line_stops (
 CREATE INDEX idx_line_stops_station_id ON line_stops(station_id);
 CREATE INDEX idx_line_stops_line_id ON line_stops(line_id);
 
+CREATE TABLE tags (
+  tag_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  parent_tag_id TEXT
+);
+
+CREATE TABLE line_tags (
+  line_id TEXT NOT NULL,
+  tag_id TEXT NOT NULL,
+  PRIMARY KEY (line_id, tag_id),
+  FOREIGN KEY (line_id) REFERENCES lines(line_id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags(tag_id) ON DELETE RESTRICT
+);
+
+CREATE TABLE trains (
+  train_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  code TEXT NOT NULL
+);
+
+CREATE TABLE train_tags (
+  train_id TEXT NOT NULL,
+  tag_id TEXT NOT NULL,
+  PRIMARY KEY (train_id, tag_id),
+  FOREIGN KEY (train_id) REFERENCES trains(train_id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags(tag_id) ON DELETE RESTRICT
+);
+
+CREATE TABLE schedules (
+  schedule_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  color TEXT,
+  tz_delta_s INTEGER NOT NULL
+);
+
+CREATE TABLE schedule_tags (
+  schedule_id TEXT NOT NULL,
+  tag_id TEXT NOT NULL,
+  PRIMARY KEY (schedule_id, tag_id),
+  FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags(tag_id) ON DELETE RESTRICT
+);
+
+CREATE TABLE schedule_trains (
+  schedule_id TEXT NOT NULL,
+  train_id TEXT NOT NULL,
+  PRIMARY KEY (schedule_id, train_id),
+  FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE,
+  FOREIGN KEY (train_id) REFERENCES trains(train_id) ON DELETE CASCADE
+);
+
+CREATE TABLE schedule_train_shifts (
+  schedule_id TEXT NOT NULL,
+  train_id TEXT NOT NULL,
+  shift_id TEXT NOT NULL,
+  PRIMARY KEY (schedule_id, train_id, shift_id),
+  FOREIGN KEY (schedule_id, train_id) REFERENCES schedule_trains(schedule_id, train_id) ON DELETE CASCADE,
+  FOREIGN KEY (schedule_id, shift_id) REFERENCES shifts(schedule_id, shift_id) ON DELETE CASCADE
+);
+
+CREATE TABLE shifts (
+  schedule_id TEXT NOT NULL,
+  shift_id TEXT NOT NULL,
+  name TEXT,
+  PRIMARY KEY (schedule_id, shift_id),
+  FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE
+);
+
+CREATE TABLE shift_tags (
+  schedule_id TEXT NOT NULL,
+  shift_id TEXT NOT NULL,
+  tag_id TEXT NOT NULL,
+  PRIMARY KEY (schedule_id, shift_id, tag_id),
+  FOREIGN KEY (schedule_id, shift_id) REFERENCES shifts(schedule_id, shift_id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags(tag_id) ON DELETE RESTRICT
+);
+
+CREATE TABLE runs (
+  schedule_id TEXT NOT NULL,
+  shift_id TEXT NOT NULL,
+  run_idx INTEGER NOT NULL,
+  line_id TEXT NOT NULL,
+  enter_stop_idx INTEGER NOT NULL,
+  exit_stop_idx INTEGER NOT NULL,
+  timings_json TEXT NOT NULL,
+  PRIMARY KEY (schedule_id, shift_id, run_idx),
+  FOREIGN KEY (schedule_id, shift_id) REFERENCES shifts(schedule_id, shift_id) ON DELETE CASCADE,
+  FOREIGN KEY (line_id) REFERENCES lines(line_id) ON DELETE RESTRICT
+);
+
 .mode tabs
 .import $tmpdir/stations.tsv stations
 .import $tmpdir/lines.tsv lines
 .import $tmpdir/line_stops.tsv line_stops
+.import $tmpdir/tags.tsv tags
+.import $tmpdir/line_tags.tsv line_tags
+.import $tmpdir/trains.tsv trains
+.import $tmpdir/train_tags.tsv train_tags
+.import $tmpdir/schedules.tsv schedules
+.import $tmpdir/schedule_tags.tsv schedule_tags
+.import $tmpdir/schedule_trains.tsv schedule_trains
+.import $tmpdir/shifts.tsv shifts
+.import $tmpdir/schedule_train_shifts.tsv schedule_train_shifts
+.import $tmpdir/shift_tags.tsv shift_tags
+.import $tmpdir/runs.tsv runs
 
 CREATE VIEW line_stops_enriched AS
 SELECT
@@ -243,10 +456,20 @@ stations_count="$(sqlite3 "$output" "SELECT COUNT(*) FROM stations;")"
 lines_count="$(sqlite3 "$output" "SELECT COUNT(*) FROM lines;")"
 line_stops_count="$(sqlite3 "$output" "SELECT COUNT(*) FROM line_stops;")"
 view_count="$(sqlite3 "$output" "SELECT COUNT(*) FROM line_stops_enriched;")"
+tags_count="$(sqlite3 "$output" "SELECT COUNT(*) FROM tags;")"
+trains_count="$(sqlite3 "$output" "SELECT COUNT(*) FROM trains;")"
+schedules_count="$(sqlite3 "$output" "SELECT COUNT(*) FROM schedules;")"
+shifts_count="$(sqlite3 "$output" "SELECT COUNT(*) FROM shifts;")"
+runs_count="$(sqlite3 "$output" "SELECT COUNT(*) FROM runs;")"
 
 echo "Created: $output"
 echo "Stations: $stations_count"
 echo "Lines: $lines_count"
 echo "Stops: $line_stops_count (ex. $zero_stop_count waypoints)"
+echo "Tags: $tags_count"
+echo "Trains: $trains_count"
+echo "Schedules: $schedules_count"
+echo "Shifts: $shifts_count"
+echo "Runs: $runs_count"
 echo ""
 echo "Have fun!"

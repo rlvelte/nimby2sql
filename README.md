@@ -1,28 +1,25 @@
 # NIMBY2SQL
-Converts NIMBY Rails savegame into an SQLite database, so you can explore stations/lines and their relations with SQL for analysis and optimization.
+Converts NIMBY Rails savegame into an SQLite database, so you can explore your complete network and its relations with SQL for analysis and optimization.
 
 ## Requirements
 Linux/macOS:
 - `bash`
 - `curl` (for bootstrap)
-- `jq`
 - `sqlite3`
-- `python3` (optional, for GraphML export)
-- `awk`, `sort`, `comm`, `wc`, `mktemp`, `join`
+- `jq`
 
 Windows:
-- `pwsh` (PowerShell 7+)
+- `powershell/pwsh`
 - `sqlite3` in `PATH`
-- `python` (optional, for GraphML export)
 
 
 ## 1. Export
 Use the export functions in **NIMBY Rails** located at `Company and Accounting -> Info`:
-1. Export GeoJSON -> `C:\users\<user>\Saved Games\Weird and Wry\NIMBY Rails\<savegame-name>.json`
-2. Export Timetables -> `C:\users\<user>\Saved Games\Weird and Wry\NIMBY Rails\<savegame-name> Timetable Export.json`
+1. Export GeoJSON -> `C:\Users\<user>\Saved Games\Weird and Wry\NIMBY Rails\<savegame-name>.json`
+2. Export Timetables -> `C:\Users\<user>\Saved Games\Weird and Wry\NIMBY Rails\<savegame-name> Timetable Export.json`
 
 > [!NOTE]
-> Linux saves those files in `/.local/share/Steam/steamapps/compatdata/1134710/pfx/drive_c/...`
+> Linux saves those files in `~/.local/share/Steam/steamapps/compatdata/1134710/pfx/drive_c/...`
 
 
 ## 2. Run the script
@@ -41,23 +38,47 @@ $script = Join-Path ([System.IO.Path]::GetTempPath()) "build_nimby.ps1"; Invoke-
 
 
 ## 3. Result
-The script creates a `.db` file. You can use it with `sqlite3` or any other client of your choice. 
-If you prefer a GUI, I can recommend [DB Browser for SQLite](https://sqlitebrowser.org/).
+The script creates a `.db` file with the following schema. You can use it with `sqlite3` or any other client of your choice. 
+
+> [!NOTE]
+> If you prefer a GUI, I can recommend [DB Browser for SQLite](https://sqlitebrowser.org/).
+
+### Core
+| Table | Description |
+|---|---|
+| `stations` | Station ID, name, coordinates |
+| `lines` | Line ID, name, code, color |
+| `line_stops` | Per stop: line, index, station, arrival/departure seconds, leg distance |
+| `line_stops_enriched` | **View (!)** joining line_stops + lines + stations for convenience |
+
+### Tags
+| Table | Description |
+|---|---|
+| `tags` | Tag hierarchy |
+| `line_tags` | Which tags each line has |
+| `train_tags` | Which tags each train model has |
+| `schedule_tags` | Which tags each schedule has |
+| `shift_tags` | Tags per shift |
+
+### Trains
+| Table | Description |
+|---|---|
+| `trains` | Your rolling stock |
+
+### Schedules
+| Table | Description |
+|---|---|
+| `schedules` | Timetable plans with name, color, timezone offset |
+| `schedule_trains` | Which trains are assigned to which schedule |
+| `schedule_train_shifts` | Which shift each train serves within a schedule |
+| `shifts` | Individual shift runs |
+| `runs` | Line traversal runs with stop range and full timing array as JSON |
 
 > [!NOTE]
 > Stops with `station_id = 0x0` are waypoints and intentionally filtered.
 
 
-## 4. Build GraphML (optional)
-Use the Python script to convert the generated `.db` into a station-only GraphML file (`nimby_rails.graphml`) for graph based network analysis and visualization tools. 
-If you also need a GUI for that, I can recommend [Gephi](https://gephi.org/).
-
-Linux/Windows
-```bash
-python3 build_graph.py -i path-to-nimby_rails.db
-```
-
-## 5. Example queries
+## 4. Example queries
 Here are some example queries that you can run against the database to gain some insights you can use for optimization of your network or to visualize with additional software.
 
 This query shows the 20 stations that are served by the highest number of distinct lines.
@@ -76,6 +97,16 @@ FROM line_stops_enriched
 WHERE arrival_s IS NOT NULL AND departure_s IS NOT NULL
 GROUP BY line_id, line_name
 ORDER BY avg_dwell_s DESC;
+```
+
+This query shows each line with its tag classification (e.g. S-Bahn, U-Bahn, ICE).
+```sql
+SELECT l.line_id, l.name AS line_name, l.code, GROUP_CONCAT(t.name, ', ') AS tags
+FROM lines l
+LEFT JOIN line_tags lt ON lt.line_id = l.line_id
+LEFT JOIN tags t ON t.tag_id = lt.tag_id
+GROUP BY l.line_id
+ORDER BY l.name;
 ```
 
 This query finds, for each major hub station (served by at least 5 lines), the geographically nearest other hub using a Haversine distance in meters: `hubs` builds averaged station coordinates and hub strength, `pairs` computes all hub-to-hub distances, `ranked` selects the nearest neighbor per hub with `ROW_NUMBER()`, and the final `SELECT` returns one nearest-hub match per hub ordered by the largest nearest-neighbor gap.
