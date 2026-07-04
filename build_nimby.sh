@@ -33,7 +33,11 @@ trim_count() {
   tr -d '[:space:]'
 }
 
-require_cmd jq sqlite3 awk sort comm wc mktemp join
+escape_tsv() {
+  awk 'BEGIN{FS="\t";OFS="\t"}{for(i=1;i<=NF;i++){gsub(/\\/,"\\\\",$i);gsub(/\t/,"\\t",$i);gsub(/\r/,"\\r",$i);gsub(/\n/,"\\n",$i)}print}'
+}
+
+require_cmd jq sqlite3 awk sort comm wc mktemp join tr
 
 geo=""
 timetable=""
@@ -102,14 +106,14 @@ jq -r '
   | select(.class=="Station")
   | [.id, .name, .lonlat[0], .lonlat[1]]
   | @tsv
-' "$timetable" >"$tmpdir/stations.tsv"
+' "$timetable" | escape_tsv >"$tmpdir/stations.tsv"
 
 jq -r '
   .[]
   | select(.class=="Line")
   | [.id, .name, .code, .color]
   | @tsv
-' "$timetable" >"$tmpdir/lines.tsv"
+' "$timetable" | escape_tsv >"$tmpdir/lines.tsv"
 
 # Ignore Waypoint (station_id 0x0)
 jq -r '
@@ -119,7 +123,7 @@ jq -r '
   | select(.station_id != "0x0")
   | [$line.id, .idx, .station_id, .arrival, .departure, .leg_distance]
   | @tsv
-' "$timetable" >"$tmpdir/line_stops.tsv"
+' "$timetable" | escape_tsv >"$tmpdir/line_stops.tsv"
 
 # Tags hierarchy
 jq -r '
@@ -127,7 +131,7 @@ jq -r '
   | select(.class=="Tag")
   | [.id, .name, .parent_id]
   | @tsv
-' "$timetable" >"$tmpdir/tags.tsv"
+' "$timetable" | escape_tsv >"$tmpdir/tags.tsv"
 
 # Line → tags
 jq -r '
@@ -136,7 +140,7 @@ jq -r '
   | $line.tags[]
   | [$line.id, .]
   | @tsv
-' "$timetable" >"$tmpdir/line_tags.tsv"
+' "$timetable" | escape_tsv >"$tmpdir/line_tags.tsv"
 
 # Trains (rolling stock)
 jq -r '
@@ -144,7 +148,7 @@ jq -r '
   | select(.class=="Train")
   | [.id, .name, .code]
   | @tsv
-' "$timetable" >"$tmpdir/trains.tsv"
+' "$timetable" | escape_tsv >"$tmpdir/trains.tsv"
 
 # Train → tags
 jq -r '
@@ -153,7 +157,7 @@ jq -r '
   | $train.tags[]
   | [$train.id, .]
   | @tsv
-' "$timetable" >"$tmpdir/train_tags.tsv"
+' "$timetable" | escape_tsv >"$tmpdir/train_tags.tsv"
 
 # Schedules
 jq -r '
@@ -161,7 +165,7 @@ jq -r '
   | select(.class=="Schedule")
   | [.id, .name, .color, .tz_delta_s]
   | @tsv
-' "$timetable" >"$tmpdir/schedules.tsv"
+' "$timetable" | escape_tsv >"$tmpdir/schedules.tsv"
 
 # Schedule → tags
 jq -r '
@@ -170,7 +174,7 @@ jq -r '
   | $sched.tags[]
   | [$sched.id, .]
   | @tsv
-' "$timetable" >"$tmpdir/schedule_tags.tsv"
+' "$timetable" | escape_tsv >"$tmpdir/schedule_tags.tsv"
 
 # Schedule → train assignments
 jq -r '
@@ -179,7 +183,7 @@ jq -r '
   | $sched.trains | to_entries[]
   | [$sched.id, .key]
   | @tsv
-' "$timetable" >"$tmpdir/schedule_trains.tsv"
+' "$timetable" | escape_tsv >"$tmpdir/schedule_trains.tsv"
 
 # Which shift each train serves within a schedule
 jq -r '
@@ -191,7 +195,7 @@ jq -r '
   | .value[]
   | [$sid, $train_id, .]
   | @tsv
-' "$timetable" >"$tmpdir/schedule_train_shifts.tsv"
+' "$timetable" | escape_tsv >"$tmpdir/schedule_train_shifts.tsv"
 
 # Shifts
 jq -r '
@@ -200,7 +204,7 @@ jq -r '
   | $sched.shifts[]
   | [$sched.id, .id, .name]
   | @tsv
-' "$timetable" >"$tmpdir/shifts.tsv"
+' "$timetable" | escape_tsv >"$tmpdir/shifts.tsv"
 
 # Shift → tags
 jq -r '
@@ -210,7 +214,7 @@ jq -r '
   | $shift.tags[]
   | [$sched.id, $shift.id, .]
   | @tsv
-' "$timetable" >"$tmpdir/shift_tags.tsv"
+' "$timetable" | escape_tsv >"$tmpdir/shift_tags.tsv"
 
 # Runs
 jq -r '
@@ -220,7 +224,7 @@ jq -r '
   | $shift.runs[] as $run
   | [$sched.id, $shift.id, $run.idx, $run.line_id, $run.enter_stop_idx, $run.exit_stop_idx, ($run.arrival_departure | @json)]
   | @tsv
-' "$timetable" >"$tmpdir/runs.tsv"
+' "$timetable" | escape_tsv >"$tmpdir/runs.tsv"
 
 zero_stop_count="$(
   jq -r '
@@ -233,7 +237,7 @@ jq -r '
   .[]
   | select(.class=="Station")
   | .id
-' "$timetable" | awk '{printf "%.0f\n", strtonum($1)}' | sort >"$tmpdir/timetable_station_ids_dec.txt"
+' "$timetable" | while IFS= read -r id; do printf '%d\n' "$id"; done | sort >"$tmpdir/timetable_station_ids_dec.txt"
 
 jq -r '
   .features[]
@@ -257,7 +261,7 @@ jq -r '
   | select(.class=="Station")
   | [.id, .name]
   | @tsv
-' "$timetable" | awk -F'\t' '{printf "%.0f\t%s\n", strtonum($1), $2}' | sort >"$tmpdir/timetable_station_names_dec.tsv"
+' "$timetable" | while IFS=$'\t' read -r id name; do printf '%d\t%s\n' "$id" "$name"; done | sort >"$tmpdir/timetable_station_names_dec.tsv"
 
 jq -r '
   .features[]
