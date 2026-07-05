@@ -68,9 +68,13 @@ function Escape-TsvField {
 function Write-TsvRows {
   param(
     [string]$Path,
-    [Parameter(Mandatory = $true)] [System.Collections.IEnumerable]$Rows
+    [System.Collections.IEnumerable]$Rows
   )
 
+  if ($null -eq $Rows) {
+    [System.IO.File]::WriteAllText($Path, '')
+    return
+  }
   $Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
   $Writer = [System.IO.StreamWriter]::new($Path, $false, $Utf8NoBom)
   try {
@@ -168,18 +172,24 @@ if (-not [string]::IsNullOrWhiteSpace($outputDir)) {
 }
 
 try {
-  $geoJson = Get-Content -LiteralPath $geo -Raw | ConvertFrom-JsonSafe
+  $geoJson = ConvertFrom-JsonSafe (Get-Content -LiteralPath $geo -Raw)
 }
 catch {
   Fail "Geo file is not valid JSON: $geo"
 }
 
-if ($geoJson.type -ne 'FeatureCollection') {
+$geoJsonType = $null
+if ($geoJson -is [System.Management.Automation.PSCustomObject] -and
+    ($geoJson.PSObject.Properties.Name -contains 'type')) {
+  $geoJsonType = $geoJson.type
+}
+
+if ($geoJsonType -ne 'FeatureCollection') {
   Fail "Geo file is not a valid GeoJSON FeatureCollection: $geo"
 }
 
 try {
-  $timetableJson = Get-Content -LiteralPath $timetable -Raw | ConvertFrom-JsonSafe
+  $timetableJson = ConvertFrom-JsonSafe (Get-Content -LiteralPath $timetable -Raw)
 }
 catch {
   Fail "Timetable file is not valid JSON: $timetable"
@@ -308,8 +318,8 @@ try {
 
   $scheduleTrainRows = foreach ($sched in $schedules) {
     if ($null -eq $sched.trains) { continue }
-    foreach ($trainId in $sched.trains.PSObject.Properties.Name) {
-      ,@([string]$sched.id, [string]$trainId)
+    foreach ($prop in $sched.trains.PSObject.Properties) {
+      ,@([string]$sched.id, [string]$prop.Name)
     }
   }
   Write-TsvRows -Path $scheduleTrainsTsv -Rows $scheduleTrainRows
