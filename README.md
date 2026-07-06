@@ -1,5 +1,6 @@
 <img src="assets/logo.png" />
-Converts NIMBY Rails savegame into an SQLite database, so you can explore your complete network and its relations with SQL for analysis and optimization.
+
+Converts a NIMBY Rails savegame into an SQLite database, so you can explore your complete network and its relations with SQL for analysis and optimization.
 
 ## Requirements
 Linux/macOS:
@@ -26,7 +27,7 @@ Use the export functions in **NIMBY Rails** located at `Company and Accounting -
 
 ## 2. Run the script
 You can run the script directly from the command line or clone the repository and run it from the project root.
-Remember to change the placeholder (`path-to-geo.json` and `path-to-timetable.json`) with the actual paths to the exported files.
+Remember to replace the placeholders (`path-to-geo.json` and `path-to-timetable.json`) with the actual paths to the exported files.
 
 Linux
 ```bash
@@ -40,10 +41,26 @@ $script = Join-Path ([System.IO.Path]::GetTempPath()) "build_nimby.ps1"; Invoke-
 
 
 ## 3. Result
-The script creates a `.db` file with the following schema. You can use it with `sqlite3` or any other client of your choice. 
+The script creates a `.db` file with the following schema. You can use it with `sqlite3` or any other client of your choice.
 
 > [!NOTE]
 > If you prefer a GUI, I can recommend [DB Browser for SQLite](https://sqlitebrowser.org/).
+
+The screenshot of the savegame you see below ([created by Fnaski](https://share.nimbyrails.com/R1tynoPsf9mb2iohvT_CYw)) took around 1–2 minutes to complete and created a database with **~400MB** in size in the end. The script extracted the following information from the game.
+- 13749 stations
+- 1312 lines
+- 45437 stops (excl. 423 waypoints)
+- 224 tags
+- 5933 trains
+- 1312 schedules
+- 5933 shifts
+- 551320 runs
+
+<img src="assets/map.png" width="600" />
+
+
+## 3.1 Schema
+The script creates all the following tables in the database.
 
 ### Core
 | Table | Description |
