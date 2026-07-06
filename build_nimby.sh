@@ -37,6 +37,13 @@ escape_tsv() {
   awk 'BEGIN{FS="\t";OFS="\t"}{for(i=1;i<=NF;i++){gsub(/\\/,"\\\\",$i);gsub(/\t/,"\\t",$i);gsub(/\r/,"\\r",$i);gsub(/\n/,"\\n",$i)}print}'
 }
 
+progress() {
+  local cur="$1" total="$2" label="$3"
+  echo "[$cur/$total] $label"
+}
+
+total_steps=7
+
 require_cmd jq sqlite3 awk sort comm wc mktemp join tr
 
 geo=""
@@ -92,6 +99,8 @@ if [[ -e "$output" ]]; then
   fi
 fi
 
+progress 1 $total_steps "Validating inputs"
+
 mkdir -p "$(dirname "$output")"
 
 tmpdir="$(mktemp -d /tmp/nimby-import.XXXXXX)"
@@ -100,7 +109,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# EXTRACT
+progress 2 $total_steps "Extracting stations, lines, and stops"
+
 jq -r '
   .[]
   | select(.class=="Station")
@@ -125,7 +135,8 @@ jq -r '
   | @tsv
 ' "$timetable" | escape_tsv >"$tmpdir/line_stops.tsv"
 
-# Tags hierarchy
+progress 3 $total_steps "Extracting tags, trains, and assignments"
+
 jq -r '
   .[]
   | select(.class=="Tag")
@@ -159,7 +170,8 @@ jq -r '
   | @tsv
 ' "$timetable" | escape_tsv >"$tmpdir/train_tags.tsv"
 
-# Schedules
+progress 4 $total_steps "Extracting schedules, shifts, and runs"
+
 jq -r '
   .[]
   | select(.class=="Schedule")
@@ -226,6 +238,8 @@ jq -r '
   | @tsv
 ' "$timetable" | escape_tsv >"$tmpdir/runs.tsv"
 
+progress 5 $total_steps "Cross-validating timetable and geo"
+
 zero_stop_count="$(
   jq -r '
     [.[] | select(.class=="Line") | .stops[] | select(.station_id=="0x0")]
@@ -278,6 +292,8 @@ name_mismatches="$(
 if [[ "$name_mismatches" != "0" ]]; then
   die "Station name mismatch between timetable and geo (count=$name_mismatches)"
 fi
+
+progress 6 $total_steps "Creating database and importing data"
 
 sqlite3 "$output" <<SQL
 PRAGMA foreign_keys = ON;
@@ -452,6 +468,8 @@ FROM line_stops ls
 JOIN lines l ON l.line_id = ls.line_id
 JOIN stations s ON s.station_id = ls.station_id;
 SQL
+
+progress 7 $total_steps "Verifying integrity and generating summary"
 
 fk_issues="$(sqlite3 "$output" "PRAGMA foreign_keys = ON; PRAGMA foreign_key_check;")"
 [[ -z "$fk_issues" ]] || die "Foreign key check failed:\n$fk_issues"

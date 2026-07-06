@@ -33,6 +33,13 @@ function Require-Command {
   }
 }
 
+$script:TotalSteps = 7
+
+function Write-ProgressIndicator {
+  param([int]$Step, [string]$Label)
+  Write-Host "[$Step/$script:TotalSteps] $Label"
+}
+
 function ConvertFrom-JsonSafe {
   param([string]$Json)
   if ($PSVersionTable.PSVersion.Major -ge 6) {
@@ -203,6 +210,7 @@ $tmpdir = Join-Path ([System.IO.Path]::GetTempPath()) ("nimby-import.{0}" -f ([g
 New-Item -ItemType Directory -Path $tmpdir | Out-Null
 
 try {
+  Write-ProgressIndicator -Step 1 -Label "Validating inputs"
   $stationsTsv = Join-Path $tmpdir 'stations.tsv'
   $linesTsv = Join-Path $tmpdir 'lines.tsv'
   $lineStopsTsv = Join-Path $tmpdir 'line_stops.tsv'
@@ -218,6 +226,8 @@ try {
   $shiftTagsTsv = Join-Path $tmpdir 'shift_tags.tsv'
   $runsTsv = Join-Path $tmpdir 'runs.tsv'
   $schemaSql = Join-Path $tmpdir 'schema.sql'
+
+  Write-ProgressIndicator -Step 2 -Label "Extracting stations, lines, and stops"
 
   $stations = @($timetableJson | Where-Object { $_.class -eq 'Station' })
   $lines = @($timetableJson | Where-Object { $_.class -eq 'Line' })
@@ -261,6 +271,8 @@ try {
   }
   Write-TsvRows -Path $lineStopsTsv -Rows $lineStopRows
 
+  Write-ProgressIndicator -Step 3 -Label "Extracting tags, trains, and assignments"
+
   $tags = @($timetableJson | Where-Object { $_.class -eq 'Tag' })
   $tagRows = foreach ($tag in $tags) {
     ,@(
@@ -296,6 +308,8 @@ try {
     }
   }
   Write-TsvRows -Path $trainTagsTsv -Rows $trainTagRows
+
+  Write-ProgressIndicator -Step 4 -Label "Extracting schedules, shifts, and runs"
 
   $schedules = @($timetableJson | Where-Object { $_.class -eq 'Schedule' })
   $scheduleRows = foreach ($sched in $schedules) {
@@ -381,6 +395,8 @@ try {
     }
   }
   Write-TsvRows -Path $runsTsv -Rows $runRows
+
+  Write-ProgressIndicator -Step 5 -Label "Cross-validating timetable and geo"
 
   $zeroStopCount = @(
     foreach ($line in $lines) {
@@ -637,6 +653,8 @@ JOIN lines l ON l.line_id = ls.line_id
 JOIN stations s ON s.station_id = ls.station_id;
 "@
 
+  Write-ProgressIndicator -Step 6 -Label "Creating database and importing data"
+
   [System.IO.File]::WriteAllText($schemaSql, $schema)
   $schemaImportResult = & sqlite3 $output ".read $schemaSql" 2>&1
   if ($LASTEXITCODE -ne 0) {
@@ -646,6 +664,8 @@ JOIN stations s ON s.station_id = ls.station_id;
     }
     Fail "sqlite3 failed while creating schema/importing data:`n$importMessage"
   }
+
+  Write-ProgressIndicator -Step 7 -Label "Verifying integrity and generating summary"
 
   $fkIssuesRaw = Invoke-Sqlite -Database $output -Sql 'PRAGMA foreign_keys = ON; PRAGMA foreign_key_check;' -ErrorContext 'foreign key check query'
   $fkIssues = ($fkIssuesRaw -join "`n").Trim()
